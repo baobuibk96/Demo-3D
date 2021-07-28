@@ -5,6 +5,8 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<link type="text/css" rel="stylesheet" href="main.css">
+		<link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
+
 		<style>
 			body {
 				color: #444;
@@ -25,9 +27,15 @@
 			<a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> car materials<br/>
 			Ferrari 458 Italia model
 			<br><br>
-			<span class="colorPicker"><input id="body-color" type="color" value="#ff0000"></input><br/>Body</span>
-			<span class="colorPicker"><input id="details-color" type="color" value="#ffffff"></input><br/>Details</span>
-			<span class="colorPicker"><input id="glass-color" type="color" value="#ffffff"></input><br/>Glass</span>
+			<div class="flex">
+				<div class="flex mx-auto items-start">
+
+					<span class="colorPicker"><input id="body-color" type="color" value="#ff0000"></input><br/>Body</span>
+					<span class="colorPicker"><input id="details-color" type="color" value="#ffffff"></input><br/>Details</span>
+					<span class="colorPicker"><input id="glass-color" type="color" value="#ffffff"></input><br/>Glass</span>
+					<button id="change-wheel" class="border border-gray-500 rounded-md p-1 bg-white">Change Wheel</button>
+				</div>
+			</div>
 		</div>
 
 		<div id="container"></div>
@@ -52,9 +60,19 @@
 			let grid;
 			let controls;
 
+			let carModel;
+			let normalWheel = [];
+
+			let listWheels = [
+				"normal",
+				"new-wheel.glb",
+				"wheel_GAZ_66_CGTraber.glb",
+				"wheel_Zil_CGTraber.glb",
+			]
+
 			const wheels = [];
 
-			function init() {
+			async function init() {
 
 				const container = document.getElementById( 'container' );
 
@@ -137,21 +155,69 @@
 				dracoLoader.setDecoderPath( './node_modules/three/examples/js/libs/draco/gltf/' );
 
 				const loader = new GLTFLoader();
-				loader.setDRACOLoader( dracoLoader );
-				loader.load( 'ferrari.glb', function ( gltf ) {
 
-					const carModel = gltf.scene.children[ 0 ];
+				function modelLoader(url) {
+					return new Promise((resolve, reject) => {
+						loader.load(url, data=> resolve(data), null, reject);
+					});
+				}
+				loader.setDRACOLoader( dracoLoader );
+
+				const buttonChangeWheel = document.getElementById( 'change-wheel' );
+				var count = 0;
+				buttonChangeWheel.addEventListener( 'click', async function () {
+					count++
+					const url = listWheels[count % listWheels.length]
+					if(url === "normal") {
+						carModel.getObjectByName( 'wheel_fl' ).clear()
+						normalWheel[0].forEach(item => carModel.getObjectByName( 'wheel_fl' ).add(item.clone()))
+						carModel.getObjectByName( 'wheel_rl' ).clear()
+						normalWheel[2].forEach(item => carModel.getObjectByName( 'wheel_rl' ).add(item.clone()))
+						carModel.getObjectByName( 'wheel_fr' ).clear()
+						normalWheel[1].forEach(item => carModel.getObjectByName( 'wheel_fr' ).add(item.clone()))
+						carModel.getObjectByName( 'wheel_rr' ).clear()
+						normalWheel[3].forEach(item => carModel.getObjectByName( 'wheel_rr' ).add(item.clone()))
+
+						return;
+					}
+					const gltfData = await modelLoader(listWheels[count % listWheels.length])
+					
+					const newWheel = gltfData.scene
+					gltfData.scene.children.map(item => {
+						item.position.set(0, 0, 0)
+					})
+					// newWheel.position.set(0, 0, 0)
+					
+					const newWheelFlip = newWheel.clone()
+					.rotateY(180 * (Math.PI/180))
+					carModel.getObjectByName( 'wheel_fl' ).clear()
+					carModel.getObjectByName( 'wheel_fl' ).add(newWheelFlip.clone())
+					carModel.getObjectByName( 'wheel_rl' ).clear()
+					carModel.getObjectByName( 'wheel_rl' ).add(newWheelFlip.clone())
+					carModel.getObjectByName( 'wheel_fr' ).clear()
+					carModel.getObjectByName( 'wheel_fr' ).add(newWheel.clone())
+					carModel.getObjectByName( 'wheel_rr' ).clear()
+					carModel.getObjectByName( 'wheel_rr' ).add(newWheel.clone())
+				} );
+				
+				loader.load( 'ferrari.glb', function ( gltf ) {
+					carModel = gltf.scene.children[ 0 ];
 
 					carModel.getObjectByName( 'body' ).material = bodyMaterial;
-
-					carModel.getObjectByName( 'rim_fl' ).material = detailsMaterial;
-					carModel.getObjectByName( 'rim_fr' ).material = detailsMaterial;
-					carModel.getObjectByName( 'rim_rr' ).material = detailsMaterial;
-					carModel.getObjectByName( 'rim_rl' ).material = detailsMaterial;
+					
+					// carModel.getObjectByName( 'rim_fl' ).material = detailsMaterial;
+					// carModel.getObjectByName( 'rim_fr' ).material = detailsMaterial;
+					// carModel.getObjectByName( 'rim_rr' ).material = detailsMaterial;
+					// carModel.getObjectByName( 'rim_rl' ).material = detailsMaterial;
 					carModel.getObjectByName( 'trim' ).material = detailsMaterial;
 
 					carModel.getObjectByName( 'glass' ).material = glassMaterial;
-
+					normalWheel = [
+						carModel.getObjectByName( 'wheel_fl' ).children.slice(),
+						carModel.getObjectByName( 'wheel_fr' ).children.slice(),
+						carModel.getObjectByName( 'wheel_rl' ).children.slice(),
+						carModel.getObjectByName( 'wheel_rr' ).children.slice(),
+					]
 					wheels.push(
 						carModel.getObjectByName( 'wheel_fl' ),
 						carModel.getObjectByName( 'wheel_fr' ),
@@ -202,7 +268,7 @@
 				stats.update();
 
 			}
-
+			
 			init();
 
 		</script>
